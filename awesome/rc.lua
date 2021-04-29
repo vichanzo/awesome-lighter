@@ -7,6 +7,7 @@ pcall(require, "luarocks.loader")
 local gears = require("gears")
 -- awful: Everything related to window managment
 local awful = require("awful")
+local lain  = require("lain")
 require("awful.autofocus")
 
 -- Widget and layout library
@@ -73,15 +74,18 @@ awful.mouse.drag_to_tag.enabled = false
 
 -- define default apps (global variable so other components can access it)
 apps = {
-  network_manager = "connman-gtk --no-icon",
-  power_manager = "", -- recommended: xfce4-power-manager
-  bluetooth_manager = "connman-gtk --no-icon",
-  terminal = "lxterminal",
+  --network_manager = "connman-gtk --no-icon",
+  network_manager = "nm-applet --indicator",
+  power_manager = "xfce4-power-manager", -- recommended: xfce4-power-manager
+  --bluetooth_manager = "connman-gtk --no-icon",
+  terminal = "xfce4-terminal",
+  editor = os.getenv("EDITOR") or "nano",
+  --editor_cmd = terminal .. " -e " .. editor,
   launcher = "rofi -show drun -modi drun -theme " .. config_dir .. "rofi.rasi",
   run = "rofi -show run -theme " .. config_dir .. "rofi.rasi",
   lock = "light-locker-command -l",
   screenshot = "scrot -e 'mv $f ~/ 2>/dev/null'",
-  filebrowser = "pcmanfm"
+  filebrowser = "thunar"
 }
 
 -- define wireless and ethernet interface names for the network widget
@@ -93,7 +97,8 @@ network_interfaces = {
 
 -- List of apps to run on start-up - autostart
 local run_on_start_up = {
-  "lxpolkit"
+  --"lxpolkit",
+  "picom"
 --  "touchegg"
 }
 
@@ -151,10 +156,14 @@ top_panel.create(s)
 dock_panel.create(s)
 
 -- Each screen has its own tag table.
-local tagnames = { "●", "●", "●", "●", "●", "●", "●", "●", "●" }
---local tagnames = { "1", "2", "3", "4", "5", "6", "7", "8", "9" }
+local tagnames = { "●", "●", "●"}
+--local tagnames = { "1", "2", "3"}
 awful.tag(tagnames, s, {awful.layout.suit.floating})
 end)
+
+-- Create a promptbox for each screen
+-- s.mypromptbox = awful.widget.prompt()
+
 -- }}}
 
 require("components.titlebar")
@@ -168,14 +177,14 @@ awful.key({ modkey, }, "k", hotkeys_popup.show_help,
 {description = "show help", group = "session"}),
 
 -- switch to previous tag
-awful.key({ altkey, "Control" }, "Left", awful.tag.viewprev,
+awful.key({ modkey, "Control" }, "Left", awful.tag.viewprev,
 {description = "view previous desk", group = "desk"}),
 -- switch to next tag
-awful.key({ altkey, "Control" }, "Right", awful.tag.viewnext,
+awful.key({ modkey, "Control" }, "Right", awful.tag.viewnext,
 {description = "view next desk", group = "desk"}),
 
 -- move window to previous tag
-awful.key({ altkey, "Shift" }, "Left",
+awful.key({ modkey, "Shift" }, "Left",
   function ()
     -- get current tag
     local t = client.focus and client.focus.first_tag or nil
@@ -191,7 +200,7 @@ awful.key({ altkey, "Shift" }, "Left",
   end,
 {description = "move window to previous desk and switch to it", group = "desk"}),
 -- move window to next tag
-awful.key({ altkey, "Shift" }, "Right",
+awful.key({ modkey, "Shift" }, "Right",
   function ()
     -- get current tag
     local t = client.focus and client.focus.first_tag or nil
@@ -226,6 +235,7 @@ awful.key({ altkey, "Shift" }, "Tab",
 -- switch to next tag
 awful.key({ modkey, }, "Tab", awful.tag.viewnext,
 {description = "go to next desk", group = "desk"}),
+
 -- switch to last tag
 awful.key({ modkey, "Shift" }, "Tab", awful.tag.viewprev,
 {description = "go to previous desk", group = "desk"}),
@@ -324,6 +334,13 @@ awful.key({modkey}, "t",
   end,
   {description = "open a terminal", group = "launcher"}
 ),
+
+awful.key({modkey}, "Return",
+  function()
+    awful.spawn(apps.terminal)
+  end,
+  {description = "open a terminal", group = "launcher"}
+),
 -- launch rofi
 awful.key({modkey}, "space",
   function()
@@ -345,6 +362,19 @@ awful.key({altkey}, "F2",
   end
   --{description = "run prompt", group = "launcher"}
 ),
+-- run lua code
+--awful.key({modkey}, "x",
+--  function()
+--    awful.prompt.run {
+--      prompt       = "Run Lua code: ",
+--      textbox      = awful.screen.focused().mypromptbox.widget,
+--      exe_callback = awful.util.eval,
+--      history_path = awful.util.get_cache_dir() .. "/history_eval"
+--    }
+--  end,
+--  {description = "lua code prompt", group = "launcher"}
+--),
+
 
 -- Standard programs
 -- Restart awesome
@@ -369,13 +399,13 @@ awful.key({ modkey, "Shift" }, "c",
 awful.key({ modkey, }, "Down",
   function (c)
       c.maximized = false
-      c.width = screen_width * 0.40
+      c.width = screen_width * 0.90
       c.height = screen_height * 0.80
       local f = awful.placement.centered
       f(c, {honor_workarea = false, size_hints_honor = true})
       c:raise()
   end,
-{description = "center mindow", group = "window"}),
+{description = "center window", group = "window"}),
 awful.key({ modkey, }, "Up",
   function (c)
       c.maximized = not c.maximized
@@ -401,17 +431,24 @@ awful.key({ modkey, }, "Right",
       f(c, {honor_workarea = true, to_percent = 0.5, size_hints_honor = false})
       c:raise()
   end,
-{description = "snap window to the right", group = "window"})
+{description = "snap window to the right", group = "window"}),
+
+awful.key({ modkey, "Shift" }, "n", function () lain.util.add_tag() end,
+{description = "add new tag", group = "tag"}),
+
+awful.key({ modkey, "Shift" }, "r", function () lain.util.rename_tag() end,
+{description = "rename tag", group = "tag"})
 )
+
+
 
 -- Bind all key numbers to tags.
 -- Be careful: we use keycodes to make it work on any keyboard layout.
 -- This should map on the top row of your keyboard, usually 1 to 9.
-
 for i = 1, 9 do
 globalkeys = gears.table.join(globalkeys,
   -- View tag only.
-  awful.key({ altkey, "Control" }, "#" .. i + 9,
+  awful.key({modkey}, "#" .. i + 9,
     function ()
       local screen = awful.screen.focused()
       local tag = screen.tags[i]
@@ -420,8 +457,20 @@ globalkeys = gears.table.join(globalkeys,
       end
     end,
   {description = "view desk "..i, group = "desk"}),
+
+  -- Toggle tag display.
+  awful.key({ modkey, "Control" }, "#" .. i + 9,
+    function ()
+      local screen = awful.screen.focused()
+      local tag = screen.tags[i]
+      if tag then
+        awful.tag.viewtoggle(tag)
+      end
+    end,
+  {description = "toggle tag #" .. i, group = "desk"}),
+
   -- Move client to tag.
-  awful.key({ altkey, "Shift" }, "#" .. i + 9,
+  awful.key({ modkey, "Shift" }, "#" .. i + 9,
     function ()
       if client.focus then
         local tag = client.focus.screen.tags[i]
@@ -438,7 +487,7 @@ end
 -- check if mouse clicks on window border
 local function check_border(mx, my, cx, cy, cw, ch)
   local onborder = nil
-  if my > (cy + ch - 6) then
+  if my > (cy + ch - 30) then
     if mx < (cx + 30) then onborder = "bottom_left"
     elseif mx > (cx + cw - 30) then onborder = "bottom_right"
     else onborder = "bottom"
